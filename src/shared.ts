@@ -3,10 +3,11 @@ export type ChatMessage = {
   content: string;
   user: string;
   role: "user" | "assistant";
-  created_at?: string;
-  user_ip?: string;
-  user_device?: string;
-  user_account?: string;
+  created_at: string;
+  user_ip: string;
+  user_device: string;
+  // user_account: string;
+  user_avatar: string;
 };
 
 export type Message =
@@ -16,7 +17,7 @@ export type Message =
       content: string;
       user: string;
       role: "user" | "assistant";
-      created_at?: string;
+      user_avatar: string;
     }
   | {
       type: "update";
@@ -24,7 +25,7 @@ export type Message =
       content: string;
       user: string;
       role: "user" | "assistant";
-      created_at?: string;
+      user_avatar: string;
     }
   | {
       type: "all";
