@@ -7,6 +7,28 @@ import {
 
 import type { ChatMessage, Message } from "../shared";
 
+// 在檔案頂部新增全域變數
+let currentUserInfo: {
+  ip: string;
+  userAgent: ReturnType<typeof parseUserAgent>;
+  country: string;
+  city: string;
+  acceptLanguage: string;
+  origin: string;
+} = {
+  ip: "",
+  userAgent: {
+    os: "unknown",
+    browser: "unknown",
+    deviceType: "unknown",
+    fullUA: "unknown",
+  },
+  country: "",
+  city: "",
+  acceptLanguage: "",
+  origin: "",
+};
+
 export class Chat extends Server<Env> {
   static options = { hibernate: true };
 
@@ -26,12 +48,6 @@ export class Chat extends Server<Env> {
 
   broadcastMessage(message: Message, exclude?: string[]) {
     this.broadcast(JSON.stringify(message), exclude);
-  }
-
-  onRequest(request: Request): Response | Promise<Response> {
-		console.log('connected request:', request);
-    // 處理請求
-    return new Response("Hello World");
   }
 
   onStart() {
@@ -67,6 +83,8 @@ export class Chat extends Server<Env> {
 
   onConnect(connection: Connection) {
     // console.log("this.ctx.id:", this.ctx.id.name); // id of room: PORN
+    // console.log(this.messages);
+    // console.log(connection);
 
     connection.send(
       JSON.stringify({
@@ -108,12 +126,12 @@ export class Chat extends Server<Env> {
   onMessage(connection: Connection, message: WSMessage) {
     // let's broadcast the raw message to everyone else
     this.broadcast(message);
-    console.log("on message");
-    console.log(message);
-
 
     // let's update our local messages store
     const parsed = JSON.parse(message as string) as Message;
+
+    console.log(currentUserInfo);
+
     if (parsed.type === "add" || parsed.type === "update") {
       const messageWithTimestamp: ChatMessage = {
         ...parsed,
@@ -129,9 +147,53 @@ export class Chat extends Server<Env> {
 
 export default {
   async fetch(request, env) {
+    saveRequestInfo(request);
     return (
       (await routePartykitRequest(request, { ...env })) ||
       env.ASSETS.fetch(request)
     );
   },
 } satisfies ExportedHandler<Env>;
+
+function saveRequestInfo(request: Request) {
+  console.log(request.headers);
+
+  currentUserInfo = {
+    ip:
+      request.headers.get("cf-connecting-ip") ||
+      request.headers.get("x-forwarded-for") ||
+      request.headers.get("x-real-ip") ||
+      "unknown",
+    userAgent: parseUserAgent(request.headers.get("user-agent") || "unknown"),
+    country: (request.cf?.country as string) || "unknown",
+    city: (request.cf?.city as string) || "unknown",
+    acceptLanguage: request.headers.get("accept-language") || "unknown",
+    origin: request.headers.get("origin") || "unknown",
+  };
+}
+
+function parseUserAgent(userAgent: string) {
+  const ua = userAgent.toLowerCase();
+
+  // 偵測作業系統
+  let os = "unknown";
+  if (ua.includes("windows")) os = "Windows";
+  else if (ua.includes("mac")) os = "macOS";
+  else if (ua.includes("linux")) os = "Linux";
+  else if (ua.includes("android")) os = "Android";
+  else if (ua.includes("iphone") || ua.includes("ipad")) os = "iOS";
+
+  // 偵測瀏覽器
+  let browser = "unknown";
+  if (ua.includes("chrome")) browser = "Chrome";
+  else if (ua.includes("firefox")) browser = "Firefox";
+  else if (ua.includes("safari")) browser = "Safari";
+  else if (ua.includes("edge")) browser = "Edge";
+
+  // 偵測裝置類型
+  let deviceType = "desktop";
+  if (ua.includes("mobile")) deviceType = "mobile";
+  else if (ua.includes("tablet")) deviceType = "tablet";
+
+  return { os, browser, deviceType, fullUA: userAgent };
+}
