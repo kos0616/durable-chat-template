@@ -10,11 +10,16 @@ import {
 } from "react-router";
 import { nanoid } from "nanoid";
 
-import { names, type ChatMessage, type Message } from "../shared";
+import {
+  names,
+  type ChatMessage,
+  type ChatMessageInput,
+  type Message,
+} from "../shared";
 
 function App() {
   const [name] = useState(names[Math.floor(Math.random() * names.length)]);
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [messages, setMessages] = useState<Array<ChatMessage>>([]);
   const { room } = useParams();
 
   const socket = usePartySocket({
@@ -26,15 +31,7 @@ function App() {
         const foundIndex = messages.findIndex((m) => m.id === message.id);
         if (foundIndex === -1) {
           // probably someone else who added a message
-          setMessages((messages) => [
-            ...messages,
-            {
-              id: message.id,
-              content: message.content,
-              user: message.user,
-              role: message.role,
-            },
-          ]);
+          setMessages((messages) => [...messages, message as any]);
         } else {
           // this usually means we ourselves added a message
           // and it was broadcasted back
@@ -42,27 +39,13 @@ function App() {
           setMessages((messages) => {
             return messages
               .slice(0, foundIndex)
-              .concat({
-                id: message.id,
-                content: message.content,
-                user: message.user,
-                role: message.role,
-              })
+              .concat(message as any)
               .concat(messages.slice(foundIndex + 1));
           });
         }
       } else if (message.type === "update") {
         setMessages((messages) =>
-          messages.map((m) =>
-            m.id === message.id
-              ? {
-                  id: message.id,
-                  content: message.content,
-                  user: message.user,
-                  role: message.role,
-                }
-              : m,
-          ),
+          messages.map((m) => (m.id === message.id ? (message as any) : m)),
         );
       } else {
         setMessages(message.messages);
@@ -76,6 +59,8 @@ function App() {
         <div key={message.id} className="row message">
           <div className="two columns user">{message.user}</div>
           <div className="ten columns">{message.content}</div>
+          {message.user_country}, {message.user_device}, {message.user_ip},{" "}
+          {message.created_at}
         </div>
       ))}
       <form
@@ -85,13 +70,14 @@ function App() {
           const content = e.currentTarget.elements.namedItem(
             "content",
           ) as HTMLInputElement;
-          const chatMessage: ChatMessage = {
+          const chatMessage: ChatMessageInput = {
             id: nanoid(8),
             content: content.value,
             user: name,
             role: "user",
+            user_avatar: "",
           };
-          setMessages((messages) => [...messages, chatMessage]);
+          setMessages((messages) => [...messages, chatMessage as any]);
           // we could broadcast the message here
 
           socket.send(

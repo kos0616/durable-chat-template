@@ -43,7 +43,8 @@ export class Chat extends Server<Env> {
     created_at TEXT,
     user_ip TEXT,
     user_device TEXT,
-		user_avatar TEXT
+		user_avatar TEXT,
+		user_country TEXT
   `;
 
   broadcastMessage(message: Message, exclude?: string[]) {
@@ -64,28 +65,36 @@ export class Chat extends Server<Env> {
     } catch (error) {
       // 如果出現任何錯誤，清空重建
       console.log("⚠️ 表格結構不符，清空重建...");
+      console.log(
+        "錯誤詳情:",
+        error instanceof Error ? error.message : String(error),
+      );
 
       try {
         // 刪除舊表格
         this.ctx.storage.sql.exec(`DROP TABLE IF EXISTS messages`);
+        console.log("🗑️ 舊資料表已刪除");
       } catch (e) {
         // 忽略刪除錯誤
+        console.log("⚠️ 刪除舊表格時出現錯誤（可忽略）:", e);
       }
+      try {
+        // 重新建立完整表格
+        this.ctx.storage.sql.exec(
+          `CREATE TABLE messages (${this.TABLE_SCHEMA})`,
+        );
+        console.log("🆕 新資料表已建立");
 
-      // 重新建立完整表格
-      this.ctx.storage.sql.exec(`CREATE TABLE messages (${this.TABLE_SCHEMA})`);
-
-      // 初始化空的訊息陣列
-      this.messages = [];
-      console.log("✅ 表格重建完成");
+        // 初始化空的訊息陣列
+        this.messages = [];
+        console.log("✅ 表格重建完成");
+      } catch (error) {
+        console.error("❌ 建立資料表失敗:", error);
+      }
     }
   }
 
   onConnect(connection: Connection) {
-    // console.log("this.ctx.id:", this.ctx.id.name); // id of room: PORN
-    // console.log(this.messages);
-    // console.log(connection);
-
     connection.send(
       JSON.stringify({
         type: "all",
@@ -108,19 +117,43 @@ export class Chat extends Server<Env> {
       this.messages.push(message);
     }
 
-    // 直接使用完整的欄位結構（因為表格已經包含所有欄位）
+    // 嘗試使用完整的欄位結構儲存到資料庫
     const now = new Date().toISOString();
-    this.ctx.storage.sql.exec(
-      `INSERT INTO messages (id, user, role, content, created_at, user_ip, user_device) 
-       VALUES ('${message.id}', '${message.user}', '${message.role}', ${JSON.stringify(message.content)}, 
-               '${message.created_at || now}', '${message.user_ip || ""}', 
-               '${message.user_device || ""}') 
-       ON CONFLICT (id) DO UPDATE SET 
-         content = ${JSON.stringify(message.content)},
-         created_at = '${message.created_at || now}',
-         user_ip = '${message.user_ip || ""}',
-         user_device = '${message.user_device || ""}'`,
-    );
+    try {
+      this.ctx.storage.sql.exec(
+        `INSERT INTO messages (id, user, role, content, created_at, user_ip, user_device, user_avatar, user_country) 
+         VALUES ('${message.id}', '${message.user}', '${message.role}', ${JSON.stringify(message.content)}, 
+                 '${message.created_at || now}', '${message.user_ip || ""}', 
+                 '${message.user_device || ""}', '${message.user_avatar || ""}', '${message.user_country || ""}') 
+         ON CONFLICT (id) DO UPDATE SET 
+           content = ${JSON.stringify(message.content)},
+           created_at = '${message.created_at || now}'`,
+      );
+    } catch (error) {
+      console.log("💾 資料庫寫入失敗，嘗試重建資料表...", error);
+
+      try {
+        // 刪除並重建資料表
+        this.ctx.storage.sql.exec(`DROP TABLE IF EXISTS messages`);
+        this.ctx.storage.sql.exec(
+          `CREATE TABLE messages (${this.TABLE_SCHEMA})`,
+        );
+        console.log("🔄 資料表重建完成，重新嘗試儲存訊息");
+
+        // 重新儲存所有訊息（包括目前這則）
+        for (const msg of this.messages) {
+          this.ctx.storage.sql.exec(
+            `INSERT INTO messages (id, user, role, content, created_at, user_ip, user_device, user_avatar, user_country) 
+             VALUES ('${msg.id}', '${msg.user}', '${msg.role}', ${JSON.stringify(msg.content)}, 
+                     '${msg.created_at || now}', '${msg.user_ip || ""}', 
+                     '${msg.user_device || ""}', '${msg.user_avatar || ""}', '${msg.user_country || ""}')`,
+          );
+        }
+        console.log(`✅ 成功重新儲存 ${this.messages.length} 則訊息`);
+      } catch (rebuildError) {
+        console.error("❌ 資料表重建失敗:", rebuildError);
+      }
+    }
   }
 
   onMessage(connection: Connection, message: WSMessage) {
@@ -130,15 +163,14 @@ export class Chat extends Server<Env> {
     // let's update our local messages store
     const parsed = JSON.parse(message as string) as Message;
 
-    console.log(currentUserInfo);
-
     if (parsed.type === "add" || parsed.type === "update") {
       const messageWithTimestamp: ChatMessage = {
         ...parsed,
         created_at: new Date().toISOString(),
         user_avatar: parsed.user_avatar || "",
-        user_ip: "",
-        user_device: "",
+        user_ip: currentUserInfo.ip,
+        user_device: currentUserInfo.userAgent.fullUA,
+        user_country: currentUserInfo.country,
       };
       this.saveMessage(messageWithTimestamp);
     }
@@ -156,8 +188,6 @@ export default {
 } satisfies ExportedHandler<Env>;
 
 function saveRequestInfo(request: Request) {
-  console.log(request.headers);
-
   currentUserInfo = {
     ip:
       request.headers.get("cf-connecting-ip") ||

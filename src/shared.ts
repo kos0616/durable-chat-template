@@ -8,7 +8,13 @@ export type ChatMessage = {
   user_device: string;
   // user_account: string;
   user_avatar: string;
+  user_country: string;
 };
+
+export type ChatMessageInput = Omit<
+  ChatMessage,
+  "created_at" | "user_ip" | "user_device" | "user_country"
+> & { user_avatar?: string };
 
 export type Message =
   | {
