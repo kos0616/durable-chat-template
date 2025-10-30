@@ -14,6 +14,7 @@
     "publish": true
   },
   "dependencies": {
+    "dayjs": "^1.11.18",
     "nanoid": "5.1.5",
     "partyserver": "0.0.66",
     "partysocket": "1.1.3",
