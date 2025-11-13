@@ -1,5 +1,5 @@
 export default function parseUserAgent(userAgent: string) {
-  const ua = userAgent.toLowerCase();
+  const ua = (userAgent || "").toLowerCase();
 
   // 偵測作業系統
   let os = "unknown";

@@ -1,12 +1,10 @@
 import React from "react";
-import Messages from "./messages";
-import ChatInput from "./chatInput";
+import { Link } from "react-router";
 
-export default function ChatRoom() {
+export default function Home() {
   return (
-    <div className="flex flex-col gap-4">
-      <Messages></Messages>
-      <ChatInput></ChatInput>
-    </div>
+    <>
+      <div>Home</div>
+    </>
   );
 }
