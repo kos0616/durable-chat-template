@@ -6,15 +6,13 @@ import {
   type Message,
 } from "../../../shared";
 import { usePartySocket } from "partysocket/react";
-import { useParams } from "react-router";
-import { nanoid } from "nanoid";
 
 export default function ChatInput({
   className,
-}: React.HTMLAttributes<HTMLDivElement>) {
+  room,
+}: React.HTMLAttributes<HTMLDivElement> & { room?: string }) {
   const [name] = useState(names[Math.floor(Math.random() * names.length)]);
   const [messages, setMessages] = useState<Array<ChatMessage>>([]);
-  const { room } = useParams();
 
   const socket = usePartySocket({
     party: "chat",
@@ -56,7 +54,7 @@ export default function ChatInput({
           "content",
         ) as HTMLInputElement;
         const chatMessage: ChatMessageInput = {
-          id: nanoid(8),
+          id: room || "lobby",
           content: content.value,
           user: name,
           role: "user",

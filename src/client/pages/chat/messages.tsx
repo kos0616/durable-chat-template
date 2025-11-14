@@ -1,17 +1,21 @@
 import { names, type ChatMessage, type Message } from "../../../shared";
 import React, { useState } from "react";
-import { useParams } from "react-router";
 import { usePartySocket } from "partysocket/react";
 
 import parseUserAgent from "../../lib/agentFormater";
 
 import TimeDisplay from "../../components/timeDisplay";
 
-export default function App() {
+interface ChatRoomProps {
+  room?: string;
+}
+
+export default function App({ room }: ChatRoomProps) {
   const [messages, setMessages] = useState<Array<ChatMessage>>([]);
-  const { room } = useParams();
 
   usePartySocket({
+    // if no host, it will connect to localhost self
+    // host: "localhost:8787",
     party: "chat",
     room,
     onMessage: (evt) => {

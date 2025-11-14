@@ -2,11 +2,15 @@ import React from "react";
 import Messages from "./messages";
 import ChatInput from "./chatInput";
 
-export default function ChatRoom() {
+interface ChatRoomProps {
+  room?: string;
+}
+
+export default function ChatRoom({ room }: ChatRoomProps) {
   return (
     <div className="flex flex-col gap-4">
-      <Messages></Messages>
-      <ChatInput></ChatInput>
+      <Messages room={room}></Messages>
+      <ChatInput room={room}></ChatInput>
     </div>
   );
 }
