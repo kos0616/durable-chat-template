@@ -1,5 +1,5 @@
 import React from "react";
-import { Link } from "react-router";
+import { Link, NavLink } from "react-router";
 
 interface NavbarProps {
   className?: string;
@@ -24,12 +24,15 @@ export default function Navbar({ className }: NavbarProps) {
           <ul className="flex gap-1">
             {links.map((link) => (
               <li key={link.to} className="">
-                <Link
+                <NavLink
                   to={link.to}
-                  className="block px-2 py-2 text-gray-700 hover:text-gray-500"
+                  className={({ isActive }) =>
+                    "block px-2 py-2 hover:text-blue-800 hover:underline " +
+                    (isActive ? "text-blue-500" : "text-gray-700")
+                  }
                 >
                   {link.label}
-                </Link>
+                </NavLink>
               </li>
             ))}
           </ul>
